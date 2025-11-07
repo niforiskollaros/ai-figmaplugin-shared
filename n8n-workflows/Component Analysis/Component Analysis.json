@@ -1,0 +1,364 @@
+{
+  "name": "Component Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "component-analysis",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -240,
+        160
+      ],
+      "webhookId": "component-analysis"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are analyzing frame \"{{ $json.nodeName }}\" for component library governance and usage.\n\nYou have access to these tools:\n- get_components: Find all component instances and master components\n- analyze_hierarchy: Check component nesting depth and complexity\n- get_node_details: Understand component structure and properties\n\nFile Key: {{ $json.fileKey }}\nNode ID: {{ $json.nodeId }}\n\nYour task:\n1. Use ALL THREE tools to understand component usage\n2. Evaluate component governance and best practices\n3. Create a comprehensive list of findings\n\nAnalyze for these issues:\n- Component vs. local copies (are designers using components properly?)\n- Detached instances (broken component links)\n- Component coverage (what % uses components vs. manual layers?)\n- Override complexity (too many overrides = poor component design)\n- Nesting depth (components nested too deeply = performance issues)\n- Variant usage (unused variants = bloat)\n- Naming conventions (clear component names?)\n- Component organization (proper structure?)\n\nFor each issue found, structure it as:\n{\n  \"category\": \"COMPONENTS\" | \"ARCHITECTURE\" | \"GOVERNANCE\" | \"PERFORMANCE\" | \"MAINTENANCE\",\n  \"severity\": \"high\" | \"medium\" | \"low\",\n  \"issue\": \"Brief description\",\n  \"reason\": \"Why this matters for design system governance\",\n  \"recommendation\": \"Specific actionable fix\"\n}\n\nSeverity guidelines:\n- HIGH: Detached instances, no component usage, critical architecture flaws\n- MEDIUM: Poor override patterns, missing variants, naming issues\n- LOW: Minor organizational improvements, documentation gaps\n\nReturn findings as a JSON array wrapped in ```json code block.",
+        "options": {
+          "systemMessage": "=You are a design systems architect and component library expert with deep knowledge of:\n- Component-driven design patterns\n- Figma component architecture and variants\n- Design system governance and maintenance\n- Component library scalability\n- Performance implications of component nesting\n- Component naming conventions and organization\n\nYou analyze component usage methodically, identify governance issues, and provide actionable recommendations for maintaining healthy component libraries.\n\nIMPORTANT: When using tools, they expect camelCase parameters:\n- fileKey (not file_key)\n- nodeId (not node_id)\n\nAlways call ALL available tools to gather complete context before evaluating. Consider:\n- Are designers using the component library or creating one-off designs?\n- Are component relationships healthy or breaking down?\n- Is the component architecture scalable?\n- Are naming and organization conventions being followed?"
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "AI Agent Component Analysis",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        416,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5-mini",
+        "options": {
+          "maxTokens": 32768,
+          "temperature": 1
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        144,
+        496
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_OPENAI_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $input.first().json.fileKey }}_{{ $input.first().json.nodeId }}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        320,
+        480
+      ],
+      "notes": "Remembers last 5 component analyses per frame"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'get_components',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Get Components",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'analyze_hierarchy',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Hierarchy Analysis",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        544
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'get_node_details',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Node Details",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Agent Output - Mode 2: Component Analysis\n// Parses component insights array\n\n// Parse AI Agent output\nconst item = $input.item.json;\nconst agentOutput = item.output;\n\nlet insights = [];\n\ntry {\n  // Try to extract JSON from markdown code block\n  const jsonMatch = agentOutput.match(/```json\\s+([\\s\\S]+?)\\s+```/);\n  \n  if (jsonMatch && jsonMatch[1]) {\n    insights = JSON.parse(jsonMatch[1]);\n  } else {\n    // Try parsing directly\n    insights = JSON.parse(agentOutput);\n  }\n} catch (e) {\n  console.error('Parse error:', e);\n  // Fallback: try to find JSON array anywhere in the output\n  try {\n    const arrayMatch = agentOutput.match(/\\[[\\s\\S]*\\]/);\n    if (arrayMatch) {\n      insights = JSON.parse(arrayMatch[0]);\n    }\n  } catch (e2) {\n    console.error('Fallback parse also failed:', e2);\n    insights = [];\n  }\n}\n\n// Ensure it's an array\nif (!Array.isArray(insights)) {\n  // If AI returns an object with insights property\n  if (insights.insights && Array.isArray(insights.insights)) {\n    insights = insights.insights;\n  } else if (insights.findings && Array.isArray(insights.findings)) {\n    insights = insights.findings;\n  } else {\n    insights = [];\n  }\n}\n\n// Group by type/category if available\nconst grouped = {};\nfor (var i = 0; i < insights.length; i++) {\n  var insight = insights[i];\n  var type = insight.type || insight.category || 'Component';\n  if (!grouped[type]) {\n    grouped[type] = [];\n  }\n  grouped[type].push(insight);\n}\n\n// Create summary\nconst summary = {\n  total: insights.length,\n  types: Object.keys(grouped).length,\n  categories: Object.keys(grouped).join(', ')\n};\n\n// Get metadata from Extract Data node (SAME AS OTHER MODES)\nlet fileName = 'Unknown File';\nlet frameName = 'Unknown Frame';\nlet fileKey = 'Unknown';\nlet nodeId = 'Unknown';\n\ntry {\n  const extractData = $('Extract Data').first().json;\n  fileName = extractData.fileName || 'Unknown File';\n  frameName = extractData.frameName || 'Unknown Frame';\n  fileKey = extractData.fileKey || 'Unknown';\n  nodeId = extractData.nodeId || 'Unknown';\n} catch (e) {\n  console.error('Could not get Extract Data:', e);\n}\n\nreturn {\n  mode: 'component-analysis',\n  insights: insights,\n  grouped: grouped,\n  summary: summary,\n  fileKey: fileKey,\n  fileName: fileName,\n  frameName: frameName,\n  nodeId: nodeId,\n  timestamp: new Date().toISOString(),\n  metadata: {\n    fileKey: fileKey,\n    fileName: fileName,\n    frameName: frameName,\n    analyzedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Parse Agent Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Slack Message - Mode 2: Component Analysis\n// Gets data from Parse Agent Output\n\nconst data = $input.first().json;\n\nconst fileName = data.fileName || 'Unknown File';\nconst frameName = data.frameName || 'Unknown Frame';\nconst fileKey = data.fileKey || 'Unknown';\nconst summary = data.summary || { total: 0, types: 0, categories: '' };\nconst insights = data.insights || [];\nconst grouped = data.grouped || {};\n\n// Build Slack message\nlet message = ':package: *AI Design Feedback Report*\\n';\nmessage += '*File:* ' + fileName + '\\n';\nmessage += '*Frame:* ' + frameName + '\\n';\nif (fileKey !== 'Unknown') {\n  message += '*File Key:* ' + fileKey.substring(0, 8) + '...\\n';\n}\nmessage += '*Focus:* Component Analysis\\n\\n';\n\n// Summary\nmessage += ':bar_chart: *Summary*\\n';\nmessage += '• Total Insights: ' + summary.total + '\\n';\nmessage += '• Component Types: ' + summary.types + '\\n';\nif (summary.categories) {\n  message += '• Categories: ' + summary.categories + '\\n';\n}\nmessage += '\\n';\n\n// Show insights by type/category\nif (summary.total > 0) {\n  message += ':mag: *Component Insights*\\n';\n  \n  var groupKeys = Object.keys(grouped);\n  for (var i = 0; i < Math.min(groupKeys.length, 3); i++) {\n    var groupKey = groupKeys[i];\n    var groupInsights = grouped[groupKey];\n    message += '\\n*' + groupKey + '* (' + groupInsights.length + ')\\n';\n    \n    for (var j = 0; j < Math.min(groupInsights.length, 2); j++) {\n      var insight = groupInsights[j];\n      var msg = insight.message || insight.description || insight.issue || 'Component insight';\n      message += '• ' + msg.substring(0, 80) + (msg.length > 80 ? '...' : '') + '\\n';\n    }\n    \n    if (groupInsights.length > 2) {\n      message += '• _+' + (groupInsights.length - 2) + ' more insights_\\n';\n    }\n  }\n  \n  if (groupKeys.length > 3) {\n    message += '\\n_+' + (groupKeys.length - 3) + ' more categories_\\n';\n  }\n  message += '\\n';\n}\n\n// Component-specific info\nif (insights.length > 0) {\n  message += ':building_construction: *Analysis Includes*\\n';\n  message += '• Component instances detected\\n';\n  message += '• Component usage patterns\\n';\n  message += '• Component consistency checks\\n';\n  message += '\\n';\n}\n\n// Footer\nmessage += ':jigsaw: Full component analysis has been added to your Figma file.\\n\\n';\nmessage += '_Powered by SignalDesign AI Agent_';\n\nreturn {\n  slackMessage: message\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Figma Response - Mode 2: Component Analysis\n// Gets data from Parse Agent Output\n\nconst data = $input.first().json;\n\nreturn {\n  success: true,\n  mode: data.mode || 'component-analysis',\n  insights: data.insights || [],\n  grouped: data.grouped || {},\n  summary: data.summary || { total: 0, types: 0, categories: '' },\n  fileKey: data.fileKey || 'Unknown',\n  fileName: data.fileName || 'Unknown File',\n  frameName: data.frameName || 'Unknown Frame',\n  nodeId: data.nodeId || 'Unknown',\n  timestamp: new Date().toISOString(),\n  metadata: data.metadata || {\n    fileKey: data.fileKey || 'Unknown',\n    fileName: data.fileName || 'Unknown File',\n    frameName: data.frameName || 'Unknown Frame',\n    analyzedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Figma Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Respond to Plugin",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1072,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09K9MV8S4D",
+          "mode": "list",
+          "cachedResultName": "design_ai_agent_support"
+        },
+        "text": "={{ $json.slackMessage }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1072,
+        48
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Send a message",
+      "webhookId": "da9d64fd-fb6d-427e-bb9b-90496dea5d7c",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_SLACK_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Data Node - JSON Code (Component Analysis)\n// This extracts the nested webhook data and outputs clean JSON\n\nconst data = $input.first().json.body.body;\n\nreturn {\n  fileKey: data.fileKey,\n  nodeId: data.nodeId,\n  fileName: data.fileName,\n  frameName: data.frameName,\n  dsFileKey: data.dsFileKey,\n  screenshot: data.screenshot || null,\n  nodeData: data.nodeData || null,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        160
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Extract Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Component Analysis": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Component Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Component Analysis",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Get Components": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Component Analysis",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Hierarchy Analysis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Component Analysis",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Node Details": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Component Analysis",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Agent Output": {
+      "main": [
+        [
+          {
+            "node": "Format Slack Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Figma Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Figma Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Plugin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Component Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "27acabf0-7ce5-423b-82ad-5ee6d59ead98",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21583cc8a217802933158e2ba380c77e740268d1b62afc9d25ac0da733f4628e"
+  },
+  "id": "YOUR_CREDENTIAL_ID",
+  "tags": []
+}

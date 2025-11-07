@@ -1,0 +1,364 @@
+{
+  "name": "Design System Check",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "design-system-check",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -368,
+        160
+      ],
+      "webhookId": "design-system-check"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are analyzing frame \"{{ $json.nodeName }}\" for design system compliance.\n\nYou have access to these tools:\n- verify_design_system_compliance: Check design system token usage\n- check_wcag_contrast: Verify WCAG accessibility\n- analyze_spacing: Validate 8px grid compliance\n\nFile Key: {{ $json.fileKey }}\nNode ID: {{ $json.nodeId }}\nDesign System File: {{ $json.dsFileKey }}\n\nYour task:\n1. Use ALL THREE tools to analyze the design\n2. Evaluate the results from each tool\n3. Create a comprehensive list of findings\n\nFor each issue found, structure it as:\n{\n  \"category\": \"ACCESSIBILITY\" | \"COLOR\" | \"LAYOUT\" | \"TYPOGRAPHY\" | \"COMPONENTS\",\n  \"severity\": \"high\" | \"medium\" | \"low\",\n  \"issue\": \"Brief description\",\n  \"reason\": \"Why this matters for users/design system\",\n  \"recommendation\": \"Specific actionable fix\"\n}\n\nSeverity guidelines:\n- HIGH: WCAG failures, design system token violations, critical spacing issues\n- MEDIUM: 8px grid violations, missing components, inconsistent styling\n- LOW: Minor polish, optional improvements\n\nReturn findings as a JSON array wrapped in ```json code block.",
+        "options": {
+          "systemMessage": "=You are an expert design system auditor with deep knowledge of:\n- Design tokens and variable systems\n- WCAG 2.1 AA/AAA standards\n- 8px grid systems and spacing harmony\n- Component library best practices\n- Figma design patterns\n\nYou analyze designs methodically, prioritize issues by impact, and provide actionable recommendations.\n\nIMPORTANT: When using tools, they expect camelCase parameters:\n- fileKey (not file_key)\n- nodeId (not node_id)\n- designSystemFileKey (not design_system_file_key)\n\nAlways call ALL available tools to get complete analysis before making conclusions."
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "AI Agent DS Compliance",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        288,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5-mini",
+        "options": {
+          "maxTokens": 32768,
+          "temperature": 1
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        128,
+        688
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_OPENAI_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $input.first().json.fileKey }}_{{ $input.first().json.nodeId }}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        272,
+        560
+      ],
+      "notes": "Remembers last 5 analyses per frame"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'verify_design_system_compliance',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId,\n    designSystemFileKey: $input.first().json.dsFileKey\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP DS Compliance",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        832,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'check_wcag_contrast',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP WCAG Contrast",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        656,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'analyze_spacing',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Spacing Analysis",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        400,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI Agent output\nconst item = $input.item.json;\nconst agentOutput = item.output;\n\nlet findings = [];\n\ntry {\n  const jsonMatch = agentOutput.match(/```json\\s+([\\s\\S]+?)\\s+```/);\n  \n  if (jsonMatch && jsonMatch[1]) {\n    findings = JSON.parse(jsonMatch[1]);\n  } else {\n    findings = JSON.parse(agentOutput);\n  }\n} catch (e) {\n  console.error('Parse error:', e);\n  findings = [];\n}\n\nif (!Array.isArray(findings)) {\n  findings = [];\n}\n\nconst grouped = {\n  high: findings.filter(f => f.severity === 'high'),\n  medium: findings.filter(f => f.severity === 'medium'),\n  low: findings.filter(f => f.severity === 'low')\n};\n\nconst summary = {\n  total: findings.length,\n  high: grouped.high.length,\n  medium: grouped.medium.length,\n  low: grouped.low.length,\n  categories: [...new Set(findings.map(f => f.category))].join(', ')\n};\n\n// Try to get metadata from Extract Data node\nlet fileName = 'Unknown File';\nlet frameName = 'Unknown Frame';\nlet fileKey = 'Unknown';\nlet nodeId = 'Unknown';\n\ntry {\n  const extractData = $('Extract Data').first().json;\n  console.log('=== Extract Data ===');\n  console.log(JSON.stringify(extractData, null, 2));\n  \n  fileName = extractData.fileName || 'Unknown File';\n  frameName = extractData.frameName || 'Unknown Frame';\n  fileKey = extractData.fileKey || 'Unknown';\n  nodeId = extractData.nodeId || 'Unknown';\n} catch (e) {\n  console.error('Could not get Extract Data:', e);\n}\n\nconsole.log('=== Final Metadata ===');\nconsole.log({ fileName, frameName, fileKey, nodeId });\n\nreturn {\n  mode: 'design-system-check',\n  findings: findings,\n  grouped: grouped,\n  summary: summary,\n  fileKey: fileKey,\n  fileName: fileName,\n  frameName: frameName,\n  nodeId: nodeId,\n  timestamp: new Date().toISOString(),\n  metadata: {\n    fileKey: fileKey,\n    fileName: fileName,\n    frameName: frameName,\n    analyzedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Parse Agent Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.item.json;\n\n// Handle different possible data structures\nconst findings = data.findings || [];\nconst grouped = data.grouped || { high: [], medium: [], low: [] };\nconst summary = data.summary || { total: 0, high: 0, medium: 0, low: 0, categories: 0 };\nconst metadata = data.metadata || {};\n\n// Extract file info - handle multiple possible locations\nconst fileKey = metadata.fileKey || data.fileKey || 'Unknown';\nconst fileName = metadata.fileName || data.fileName || 'Unknown File';\nconst frameName = metadata.frameName || data.frameName || metadata.nodeName || data.nodeName || 'Unknown Frame';\nconst analyzedAt = metadata.analyzedAt || data.timestamp || new Date().toISOString();\n\nconst severityEmoji = {\n  high: ':red_circle:',\n  medium: ':large_yellow_circle:',\n  low: ':large_green_circle:'\n};\n\nlet message = `:art: *AI Design Feedback Report*\\n`;\nmessage += `*File:* ${fileName}\\n`;\nmessage += `*Frame:* ${frameName}\\n`;\nif (fileKey !== 'Unknown') {\n  message += `*File Key:* ${fileKey.substring(0, 8)}...\\n`;\n}\nmessage += `*Focus:* Design System Compliance Check\\n`;\nmessage += `*Analyzed:* ${new Date(analyzedAt).toLocaleString()}\\n\\n`;\n\nmessage += `:bar_chart: *Summary*\\n`;\nmessage += `• Total Issues: ${summary.total}\\n`;\nmessage += `• ${severityEmoji.high} High: ${summary.high} | ${severityEmoji.medium} Medium: ${summary.medium} | ${severityEmoji.low} Low: ${summary.low}\\n`;\nmessage += `• Categories: ${summary.categories}\\n`;\nmessage += `━━━━━━━━━━━━━━━━━━━━\\n\\n`;\n\n// High priority\nif (grouped.high && grouped.high.length > 0) {\n  message += `${severityEmoji.high} *HIGH PRIORITY*\\n`;\n  grouped.high.forEach(f => {\n    message += `*${f.category}* | ${f.issue}\\n`;\n    message += `:bulb: ${f.reason}\\n`;\n    message += `:white_check_mark: ${f.recommendation}\\n\\n`;\n  });\n  message += `━━━━━━━━━━━━━━━━━━━━\\n\\n`;\n}\n\n// Medium priority\nif (grouped.medium && grouped.medium.length > 0) {\n  message += `${severityEmoji.medium} *MEDIUM PRIORITY*\\n`;\n  grouped.medium.forEach(f => {\n    message += `*${f.category}* | ${f.issue}\\n`;\n    message += `:bulb: ${f.reason}\\n`;\n    message += `:white_check_mark: ${f.recommendation}\\n\\n`;\n  });\n  message += `━━━━━━━━━━━━━━━━━━━━\\n\\n`;\n}\n\n// Low priority\nif (grouped.low && grouped.low.length > 0) {\n  message += `${severityEmoji.low} *LOW PRIORITY*\\n`;\n  grouped.low.forEach(f => {\n    message += `*${f.category}* | ${f.issue}\\n`;\n    message += `:bulb: ${f.reason}\\n`;\n    message += `:white_check_mark: ${f.recommendation}\\n\\n`;\n  });\n  message += `━━━━━━━━━━━━━━━━━━━━\\n\\n`;\n}\n\nmessage += `_Powered by SignalDesign AI Agent | Design System Check_\\n`;\n\nreturn {\n  json: {\n    slackMessage: message,\n    originalData: data\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nreturn {\n  success: true,\n  mode: 'design-system-check',\n  findings: data.findings || [],\n  grouped: data.grouped || { high: [], medium: [], low: [] },\n  summary: data.summary || { total: 0, high: 0, medium: 0, low: 0 },\n  fileName: data.fileName,\n  frameName: data.frameName,\n  fileKey: data.fileKey,\n  nodeId: data.nodeId,\n  timestamp: data.timestamp\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Figma Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Respond to Plugin",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        992,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09K9MV8S4D",
+          "mode": "list",
+          "cachedResultName": "design_ai_agent_support"
+        },
+        "text": "={{ $json.slackMessage }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        992,
+        48
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Send a message",
+      "webhookId": "da9d64fd-fb6d-427e-bb9b-90496dea5d7c",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_SLACK_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body.body;\n\nreturn {\n  fileKey: data.fileKey,\n  nodeId: data.nodeId,\n  nodeName: data.nodeName,\n  fileName: data.fileName,\n  frameName: data.frameName,\n  dsFileKey: data.dsFileKey,\n  screenshot: data.screenshot,\n  nodeData: data.nodeData,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        160
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Extract Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent DS Compliance": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent DS Compliance",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent DS Compliance",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP DS Compliance": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent DS Compliance",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP WCAG Contrast": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent DS Compliance",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Spacing Analysis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent DS Compliance",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Agent Output": {
+      "main": [
+        [
+          {
+            "node": "Format Slack Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Figma Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Figma Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Plugin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent DS Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8e279443-a2cc-4d4d-9da4-df43ac9139d6",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21583cc8a217802933158e2ba380c77e740268d1b62afc9d25ac0da733f4628e"
+  },
+  "id": "YOUR_CREDENTIAL_ID",
+  "tags": []
+}

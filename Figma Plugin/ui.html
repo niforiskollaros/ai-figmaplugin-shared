@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      padding: 16px;
+      background: #f8f9fa;
+    }
+    
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #1a1a1a;
+    }
+    
+    p {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    
+    .config-section {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 20px;
+    }
+    
+    .config-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: #666;
+      margin-bottom: 6px;
+      display: block;
+    }
+    
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      font-size: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-family: 'Monaco', 'Courier New', monospace;
+      background: #fafafa;
+    }
+    
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #667eea;
+      background: white;
+    }
+    
+    .config-hint {
+      font-size: 10px;
+      color: #999;
+      margin-top: 4px;
+    }
+    
+    .config-hint b {
+      color: #667eea;
+      font-weight: 600;
+    }
+    
+    .save-btn {
+      width: 100%;
+      padding: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    
+    .save-btn:hover {
+      background: #5568d3;
+    }
+    
+    .save-btn:active {
+      transform: scale(0.98);
+    }
+    
+    .mode-section {
+      margin-bottom: 16px;
+    }
+    
+    .mode-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    
+    button {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      background: white;
+      color: #333;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    button:hover {
+      background: #f5f5f5;
+      border-color: #999;
+    }
+    
+    button:active {
+      transform: scale(0.98);
+    }
+    
+    button.primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      font-weight: 600;
+    }
+    
+    button.primary:hover {
+      background: linear-gradient(135deg, #5568d3 0%, #63408a 100%);
+    }
+    
+    .icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    
+    .button-text {
+      flex: 1;
+    }
+    
+    .button-subtitle {
+      font-size: 11px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+    
+    .divider {
+      height: 1px;
+      background: #e0e0e0;
+      margin: 20px 0;
+    }
+    
+    .cancel-btn {
+      background: #f5f5f5;
+      color: #666;
+      margin-top: 8px;
+    }
+    
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+    
+    .status-indicator.active {
+      background: #22c55e;
+    }
+    
+    .status-indicator.inactive {
+      background: #ef4444;
+    }
+  </style>
+</head>
+<body>
+  <h2>🤖 Signal AI Design Feedback</h2>
+  <p>Select a frame and choose an analysis mode</p>
+  
+  <!-- Project File Key Configuration -->
+  <div class="config-section">
+    <label class="config-label">
+      <span class="status-indicator" id="project-status"></span>
+      Current Project File Key
+    </label>
+    <input 
+      type="text" 
+      id="project-file-key" 
+      placeholder="e.g., TJIJwQKtIMCOXlYVe2zaju"
+      value=""
+    />
+    <div class="config-hint">
+      Enter your Figma project file key (found in the URL: figma.com/file/<b>FILE_KEY</b>/...)
+    </div>
+    <button class="save-btn" onclick="saveProjectFileKey()">Save Project File Key</button>
+  </div>
+  
+  <div class="mode-section">
+    <div class="mode-label">Quick Checks</div>
+    <button onclick="runAnalysis('design-system-check')">
+      <span class="icon">⚡</span>
+      <div class="button-text">
+        Design System Check
+        <div class="button-subtitle">Verify compliance & consistency</div>
+      </div>
+    </button>
+    
+    <button onclick="runAnalysis('component-analysis')">
+      <span class="icon">🧩</span>
+      <div class="button-text">
+        Component Analysis
+        <div class="button-subtitle">Structure & hierarchy review</div>
+      </div>
+    </button>
+    
+    <button onclick="runAnalysis('color-audit')">
+      <span class="icon">🎨</span>
+      <div class="button-text">
+        Color Audit
+        <div class="button-subtitle">Contrast & accessibility</div>
+      </div>
+    </button>
+  </div>
+  
+  <div class="divider"></div>
+  
+  <div class="mode-section">
+    <div class="mode-label">Deep Analysis</div>
+    <button onclick="runAnalysis('ux-analysis')">
+      <span class="icon">🔍</span>
+      <div class="button-text">
+        UX Heuristic Analysis
+        <div class="button-subtitle">Nielsen's 10 usability principles</div>
+      </div>
+    </button>
+  </div>
+  
+  <div class="divider"></div>
+  
+  <div class="mode-section">
+    <div class="mode-label">AI Generation</div>
+    <button class="primary" onclick="runAnalysis('magic-patterns')">
+      <span class="icon">✨</span>
+      <div class="button-text">
+        Magic Patterns Alternatives
+        <div class="button-subtitle">Generate 4 design variations (~3 min)</div>
+      </div>
+    </button>
+  </div>
+  
+  <button class="cancel-btn" onclick="cancel()">Cancel</button>
+
+  <script>
+    // Load saved project file key on startup
+    window.onload = function() {
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'get-project-file-key'
+        } 
+      }, '*');
+    };
+    
+    // Listen for messages from plugin
+    window.onmessage = function(event) {
+      const msg = event.data.pluginMessage;
+      
+      if (msg.type === 'project-file-key-loaded') {
+        const input = document.getElementById('project-file-key');
+        const status = document.getElementById('project-status');
+        
+        if (msg.fileKey) {
+          input.value = msg.fileKey;
+          status.className = 'status-indicator active';
+        } else {
+          status.className = 'status-indicator inactive';
+        }
+      }
+      
+      if (msg.type === 'project-file-key-saved') {
+        const status = document.getElementById('project-status');
+        status.className = 'status-indicator active';
+        // Show brief feedback
+        const btn = document.querySelector('.save-btn');
+        const originalText = btn.textContent;
+        btn.textContent = '✓ Saved!';
+        setTimeout(() => {
+          btn.textContent = originalText;
+        }, 1500);
+      }
+    };
+    
+    function saveProjectFileKey() {
+      const fileKey = document.getElementById('project-file-key').value.trim();
+      
+      if (!fileKey) {
+        alert('Please enter a project file key');
+        return;
+      }
+      
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'save-project-file-key',
+          fileKey: fileKey
+        } 
+      }, '*');
+    }
+    
+    function runAnalysis(mode) {
+      const fileKey = document.getElementById('project-file-key').value.trim();
+      
+      if (!fileKey) {
+        alert('⚠️ Please set your project file key first!\n\nUse "Auto-detect" or enter it manually.');
+        return;
+      }
+      
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'run-analysis', 
+          mode: mode 
+        } 
+      }, '*');
+    }
+    
+    function cancel() {
+      parent.postMessage({ 
+        pluginMessage: { 
+          type: 'cancel' 
+        } 
+      }, '*');
+    }
+  </script>
+</body>
+</html>

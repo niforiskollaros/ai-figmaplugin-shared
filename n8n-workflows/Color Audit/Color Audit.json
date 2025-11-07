@@ -1,0 +1,381 @@
+{
+  "name": "Color Audit",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "color-audit",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -224,
+        208
+      ],
+      "webhookId": "color-audit"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are analyzing frame \"{{ $json.nodeName }}\" for color system governance and accessibility.\n\nYou have access to these tools:\n- get_color_analysis: Get all colors used (fills, strokes, effects)\n- get_design_system: Fetch design system color tokens\n- check_wcag_contrast: Check color contrast ratios\n\nFile Key: {{ $json.fileKey }}\nNode ID: {{ $json.nodeId }}\nDesign System File: {{ $json.dsFileKey }}\n\nYour task:\n1. Use ALL THREE tools to analyze colors\n2. Evaluate color governance and accessibility\n3. Create comprehensive findings list\n\nAnalyze for:\n- **Hard-coded colors** vs. design system tokens\n- **Brand palette compliance** (are colors from approved set?)\n- **Color contrast** (WCAG 2.1 AA/AAA compliance)\n- **Unused tokens** (tokens defined but not used)\n- **Color drift** (similar colors that should be same token)\n- **Semantic usage** (are colors used for correct purpose?)\n\nFor each issue found, structure it as:\n{\n  \"category\": \"COLOR\" | \"ACCESSIBILITY\" | \"GOVERNANCE\" | \"TOKENS\" | \"BRAND\",\n  \"severity\": \"high\" | \"medium\" | \"low\",\n  \"issue\": \"Brief description\",\n  \"reason\": \"Why this matters for design system and accessibility\",\n  \"recommendation\": \"Specific actionable fix\",\n  \"colors\": [\"#HEX1\", \"#HEX2\"] (when relevant, ALWAYS use hex format)\n}\n\nIMPORTANT: \n- Always convert RGB colors to HEX format (e.g., RGB(77,164,250) → #4DA4FA)\n- Include hex values in recommendations when suggesting color changes\n- Reference colors by hex codes, not RGB\n\nSeverity guidelines:\n- HIGH: WCAG failures, hard-coded brand colors, critical accessibility issues\n- MEDIUM: Unused tokens, color drift, inconsistent usage\n- LOW: Minor optimizations, naming improvements\n\nReturn findings as a JSON array wrapped in ```json code block.",
+        "options": {
+          "systemMessage": "=You are a color system expert and accessibility specialist with deep knowledge of:\n- Color theory and design systems\n- WCAG 2.1 contrast requirements (AA and AAA)\n- Design token architecture\n- Brand identity and palette management\n- Figma color styles and variables\n- Hex color notation and conversion\n\nYou analyze color usage methodically, identify governance issues, and provide actionable recommendations.\n\nIMPORTANT: \n- When using tools, they expect camelCase parameters (fileKey, nodeId, designSystemFileKey)\n- Always express colors in HEX format (#RRGGBB), never RGB\n- Convert any RGB values you receive to hex before including in findings\n- Be specific about which colors need to change and what hex values to use\n\nAlways call ALL available tools to gather complete context before evaluating."
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "AI Agent Color Audit",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        432,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5-mini",
+        "options": {
+          "maxTokens": 4000,
+          "temperature": 1
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        224,
+        608
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_OPENAI_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $input.first().json.fileKey }}_{{ $input.first().json.nodeId }}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Window Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        512
+      ],
+      "notes": "Remembers last 5 color analyses per frame"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'get_color_analysis',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Color Analysis",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1008,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'get_design_system',\n  parameters: {\n    designSystemFileKey: $input.first().json.dsFileKey\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Design System",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        560,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'check_wcag_contrast',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP WCAG Contrast",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        864,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Agent Output - Mode 3: Color Audit\n// MATCHES MODE 1 PATTERN - Gets metadata from Extract Data and includes in output\n\n// Parse AI Agent output\nconst item = $input.item.json;\nconst agentOutput = item.output;\n\nlet colorFindings = [];\n\ntry {\n  // Try to extract JSON from markdown code block\n  const jsonMatch = agentOutput.match(/```json\\s+([\\s\\S]+?)\\s+```/);\n  \n  if (jsonMatch && jsonMatch[1]) {\n    colorFindings = JSON.parse(jsonMatch[1]);\n  } else {\n    // Try parsing directly\n    colorFindings = JSON.parse(agentOutput);\n  }\n} catch (e) {\n  console.error('Parse error:', e);\n  // Fallback: try to find JSON array anywhere in the output\n  try {\n    const arrayMatch = agentOutput.match(/\\[[\\s\\S]*\\]/);\n    if (arrayMatch) {\n      colorFindings = JSON.parse(arrayMatch[0]);\n    }\n  } catch (e2) {\n    console.error('Fallback parse also failed:', e2);\n    colorFindings = [];\n  }\n}\n\n// Ensure it's an array\nif (!Array.isArray(colorFindings)) {\n  // If AI returns an object with colorFindings property\n  if (colorFindings.colorFindings && Array.isArray(colorFindings.colorFindings)) {\n    colorFindings = colorFindings.colorFindings;\n  } else if (colorFindings.findings && Array.isArray(colorFindings.findings)) {\n    colorFindings = colorFindings.findings;\n  } else {\n    colorFindings = [];\n  }\n}\n\n// Group by severity\nconst grouped = {\n  high: colorFindings.filter(f => f.severity === 'high'),\n  medium: colorFindings.filter(f => f.severity === 'medium'),\n  low: colorFindings.filter(f => f.severity === 'low')\n};\n\n// Create summary\nconst summary = {\n  total: colorFindings.length,\n  high: grouped.high.length,\n  medium: grouped.medium.length,\n  low: grouped.low.length,\n  categories: [...new Set(colorFindings.map(f => f.category || f.type || 'color'))].join(', ')\n};\n\n// Get metadata from Extract Data node (SAME AS MODE 1)\nlet fileName = 'Unknown File';\nlet frameName = 'Unknown Frame';\nlet fileKey = 'Unknown';\nlet nodeId = 'Unknown';\n\ntry {\n  const extractData = $('Extract Data').first().json;\n  fileName = extractData.fileName || 'Unknown File';\n  frameName = extractData.frameName || 'Unknown Frame';\n  fileKey = extractData.fileKey || 'Unknown';\n  nodeId = extractData.nodeId || 'Unknown';\n} catch (e) {\n  console.error('Could not get Extract Data:', e);\n}\n\nreturn {\n  mode: 'color-audit',\n  colorFindings: colorFindings,\n  findings: colorFindings,\n  grouped: grouped,\n  summary: summary,\n  fileKey: fileKey,\n  fileName: fileName,\n  frameName: frameName,\n  nodeId: nodeId,\n  timestamp: new Date().toISOString(),\n  metadata: {\n    fileKey: fileKey,\n    fileName: fileName,\n    frameName: frameName,\n    analyzedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Parse Agent Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        656,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Slack Message - Mode 3: Color Audit\n// MATCHES MODE 1 PATTERN - Gets data from Parse Agent Output, not Extract Data\n\nconst data = $input.first().json;\n\nconst fileName = data.fileName || 'Unknown File';\nconst frameName = data.frameName || 'Unknown Frame';\nconst fileKey = data.fileKey || 'Unknown';\nconst summary = data.summary || { total: 0, high: 0, medium: 0, low: 0 };\nconst colorFindings = data.colorFindings || data.findings || [];\n\n// Build Slack message\nlet message = ':art: *AI Design Feedback Report*\\n';\nmessage += '*File:* ' + fileName + '\\n';\nmessage += '*Frame:* ' + frameName + '\\n';\nif (fileKey !== 'Unknown') {\n  message += '*File Key:* ' + fileKey.substring(0, 8) + '...\\n';\n}\nmessage += '*Focus:* Color Audit\\n\\n';\n\n// Summary\nmessage += ':bar_chart: *Summary*\\n';\nmessage += '• Total Issues: ' + summary.total + '\\n';\nmessage += '• :red_circle: High: ' + summary.high + '\\n';\nmessage += '• :large_orange_diamond: Medium: ' + summary.medium + '\\n';\nmessage += '• :large_blue_circle: Low: ' + summary.low + '\\n\\n';\n\n// High severity issues\nif (summary.high > 0) {\n  message += ':red_circle: *High Severity Issues*\\n';\n  const highIssues = colorFindings.filter(f => f.severity === 'high');\n  for (var i = 0; i < Math.min(highIssues.length, 3); i++) {\n    const issue = highIssues[i];\n    message += '• ' + (issue.title || issue.issue || issue.description || 'Issue ' + (i + 1)) + '\\n';\n  }\n  if (highIssues.length > 3) {\n    message += '• _+' + (highIssues.length - 3) + ' more high severity issues_\\n';\n  }\n  message += '\\n';\n}\n\n// Medium severity issues\nif (summary.medium > 0) {\n  message += ':large_orange_diamond: *Medium Severity Issues*\\n';\n  const mediumIssues = colorFindings.filter(f => f.severity === 'medium');\n  for (var j = 0; j < Math.min(mediumIssues.length, 2); j++) {\n    const issue = mediumIssues[j];\n    message += '• ' + (issue.title || issue.issue || issue.description || 'Issue ' + (j + 1)) + '\\n';\n  }\n  if (mediumIssues.length > 2) {\n    message += '• _+' + (mediumIssues.length - 2) + ' more medium severity issues_\\n';\n  }\n  message += '\\n';\n}\n\n// Color-specific insights\nif (summary.total > 0) {\n  message += ':rainbow: *Color Insights*\\n';\n  \n  // Count contrast issues\n  const contrastIssues = colorFindings.filter(f => \n    (f.category && f.category.toLowerCase().includes('contrast')) || \n    (f.type && f.type.toLowerCase().includes('contrast')) ||\n    (f.issue && f.issue.toLowerCase().includes('contrast'))\n  );\n  \n  // Count governance issues\n  const governanceIssues = colorFindings.filter(f => \n    (f.category && f.category.toLowerCase().includes('governance')) || \n    (f.type && f.type.toLowerCase().includes('governance'))\n  );\n  \n  if (contrastIssues.length > 0) {\n    message += '• ' + contrastIssues.length + ' contrast/accessibility issues found\\n';\n  }\n  if (governanceIssues.length > 0) {\n    message += '• ' + governanceIssues.length + ' color governance/consistency issues\\n';\n  }\n  message += '\\n';\n}\n\n// Footer\nmessage += ':mag: Full details have been added to your Figma file as annotations.\\n\\n';\nmessage += '_Powered by SignalDesign AI Agent_';\n\nreturn {\n  slackMessage: message\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Figma Response - Mode 3: Color Audit\n// MATCHES MODE 1 PATTERN - Gets data from Parse Agent Output, not Extract Data\n\nconst data = $input.first().json;\n\nreturn {\n  success: true,\n  mode: data.mode || 'color-audit',\n  colorFindings: data.colorFindings || [],\n  findings: data.findings || [],\n  grouped: data.grouped || { high: [], medium: [], low: [] },\n  summary: data.summary || { total: 0, high: 0, medium: 0, low: 0, categories: '' },\n  fileKey: data.fileKey || 'Unknown',\n  fileName: data.fileName || 'Unknown File',\n  frameName: data.frameName || 'Unknown Frame',\n  nodeId: data.nodeId || 'Unknown',\n  timestamp: new Date().toISOString(),\n  metadata: data.metadata || {\n    fileKey: data.fileKey || 'Unknown',\n    fileName: data.fileName || 'Unknown File',\n    frameName: data.frameName || 'Unknown Frame',\n    analyzedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Figma Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Methods",
+                "value": "POST, OPTIONS"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type"
+              }
+            ]
+          }
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Respond to Plugin",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09K9MV8S4D",
+          "mode": "list",
+          "cachedResultName": "design_ai_agent_support"
+        },
+        "text": "={{ $json.slackMessage }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1088,
+        80
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Send a message",
+      "webhookId": "da9d64fd-fb6d-427e-bb9b-90496dea5d7c",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_SLACK_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json.body.body;\n\nreturn {\n  fileKey: data.fileKey,\n  nodeId: data.nodeId,\n  fileName: data.fileName,\n  frameName: data.frameName,\n  dsFileKey: data.dsFileKey,\n  screenshot: data.screenshot || null,\n  nodeData: data.nodeData || null,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        208
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Extract Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent Color Audit": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent Color Audit",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent Color Audit",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Color Analysis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Color Audit",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Design System": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Color Audit",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP WCAG Contrast": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent Color Audit",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Agent Output": {
+      "main": [
+        [
+          {
+            "node": "Format Slack Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Figma Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Figma Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Plugin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent Color Audit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c9c1ca20-4e5c-47c1-9e80-0345abdc9eeb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21583cc8a217802933158e2ba380c77e740268d1b62afc9d25ac0da733f4628e"
+  },
+  "id": "YOUR_CREDENTIAL_ID",
+  "tags": []
+}

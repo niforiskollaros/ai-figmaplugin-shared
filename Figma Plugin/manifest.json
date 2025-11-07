@@ -1,0 +1,17 @@
+{
+  "name": "Signal AI Design Feedback",
+  "id": "ai-design-feedback",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "figma"
+  ],
+  "networkAccess": {
+    "allowedDomains": [
+      "https://YOUR_N8N_INSTANCE.app.n8n.cloud",
+      "https://YOUR_MCP_SERVER.up.railway.app"
+    ],
+    "reasoning": "Required to send design data to n8n workflow for AI analysis"
+  }
+}

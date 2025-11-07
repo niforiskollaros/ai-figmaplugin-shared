@@ -1,0 +1,562 @@
+{
+  "name": "Design Alternatives - Magic Patterns",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "magic-patterns",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -1760,
+        1264
+      ],
+      "webhookId": "65d24d90-5f49-44b4-84f2-67a66bd93179"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\n\nreturn {\n  json: {\n    fileKey: body.fileKey,\n    nodeId: body.nodeId,\n    fileName: body.fileName,\n    frameName: body.frameName,\n    screenshot: body.screenshot\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Extract Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1568,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const extractData = $input.first().json;\n\nconst systemMessage = `You are a design system expert analyzing a Figma frame to generate detailed descriptions for AI design generation.\n\nYour task: Analyze the frame's structure, visual elements, colors, typography, and layout. Create a comprehensive but concise description.\n\nInclude:\n- Purpose/function (login form, dashboard card, navigation, etc.)\n- Visual style (modern, minimalist, bold, corporate, playful)\n- Color palette with specific hex values\n- Layout structure (grid, flexbox, card-based, centered, sidebar)\n- Key UI elements (buttons, inputs, cards, icons, images)\n- Typography characteristics (font sizes, weights, hierarchy)\n- Spacing patterns (tight, comfortable, spacious)\n- Notable design patterns or conventions used\n\nOutput a 3-4 sentence description that captures the essence and style of the design.\nBe specific about colors, measurements, and visual hierarchy.`;\n\nconst userMessage = `Analyze this Figma frame and create a detailed description for generating design variations:\n\n**File:** ${extractData.fileName}\n**Frame:** ${extractData.frameName}\n**Node ID:** ${extractData.nodeId}\n**File Key:** ${extractData.fileKey}\n\nCreate a comprehensive description that captures the design's purpose, style, colors, layout, and key elements.`;\n\nreturn {\n  json: {\n    fileKey: extractData.fileKey,\n    nodeId: extractData.nodeId,\n    systemMessage: systemMessage,\n    userMessage: userMessage\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Prepare AI Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1200,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.userMessage }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.systemMessage }}"
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "AI Agent - Analyze Frame",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        -960,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5-mini",
+        "options": {
+          "maxTokens": 32768,
+          "temperature": 1
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        -1344,
+        1600
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_OPENAI_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  jsonrpc: '2.0',\n  id: 1,\n  method: 'tools/call',\n  params: {\n    name: 'get_node_details',\n    arguments: {\n      fileKey: $input.first().json.fileKey,\n      nodeId: $input.first().json.nodeId\n    }\n  }\n}) }}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Node Details",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -960,
+        1568
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  jsonrpc: '2.0',\n  id: 2,\n  method: 'tools/call',\n  params: {\n    name: 'get_color_analysis',\n    arguments: {\n      fileKey: $input.first().json.fileKey,\n      nodeId: $input.first().json.nodeId\n    }\n  }\n}) }}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Color Analysis",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -960,
+        1680
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  jsonrpc: '2.0',\n  id: 3,\n  method: 'tools/call',\n  params: {\n    name: 'get_typography',\n    arguments: {\n      fileKey: $input.first().json.fileKey,\n      nodeId: $input.first().json.nodeId\n    }\n  }\n}) }}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Typography",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -960,
+        1808
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  jsonrpc: '2.0',\n  id: 4,\n  method: 'tools/call',\n  params: {\n    name: 'get_components',\n    arguments: {\n      fileKey: $input.first().json.fileKey,\n      nodeId: $input.first().json.nodeId\n    }\n  }\n}) }}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Components",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -960,
+        1920
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get AI analysis from current input (AI Agent output)\nconst aiAnalysis = $input.first().json.output;\n\n// Try different ways to reference the Set node\nlet storedData;\ntry {\n  // Method 1: Direct item reference\n  storedData = $('Store Screenshot Data').item.json;\n  console.log('Method 1 worked: .item.json');\n} catch (e1) {\n  console.log('Method 1 failed:', e1.message);\n  try {\n    // Method 2: all() then first\n    storedData = $('Store Screenshot Data').all()[0].json;\n    console.log('Method 2 worked: .all()[0].json');\n  } catch (e2) {\n    console.log('Method 2 failed:', e2.message);\n    try {\n      // Method 3: Just the function call\n      storedData = $('Store Screenshot Data').json;\n      console.log('Method 3 worked: .json');\n    } catch (e3) {\n      console.error('All methods failed!');\n      console.error('Available node names:', Object.keys($));\n      throw new Error('Cannot access Store Screenshot Data node');\n    }\n  }\n}\n\nconsole.log('=== DATA CHECK ===');\nconsole.log('AI analysis exists:', !!aiAnalysis);\nconsole.log('Stored screenshot exists:', !!storedData.screenshot);\n\nif (!storedData.screenshot) {\n  throw new Error('Screenshot missing from Store Screenshot Data node');\n}\n\nconst enhancedPrompt = `Create 4 modern design variations based on this design:\n\n${aiAnalysis}\n\nRequirements:\n- Maintain the core purpose and functionality\n- Explore different visual directions (layout, colors, typography)\n- Keep it clean and professional\n- Use modern design patterns\n- Ensure responsive design principles`;\n\nreturn {\n  json: {\n    prompt: enhancedPrompt,\n    mode: 'fast',\n    presetId: 'html-tailwind',\n    screenshot: storedData.screenshot,\n    frameName: storedData.frameName,\n    fileKey: storedData.fileKey,\n    nodeId: storedData.nodeId,\n    fileName: storedData.fileName\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Prepare MP Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -736,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\n\nconsole.log('Convert Screenshot - Input keys:', Object.keys(item));\nconsole.log('Screenshot exists:', !!item.screenshot);\nconsole.log('Screenshot type:', typeof item.screenshot);\n\nif (!item.screenshot) {\n  console.error('ERROR: No screenshot in input!');\n  console.error('Available data:', JSON.stringify(item, null, 2).substring(0, 500));\n  throw new Error('Screenshot is missing from Prepare MP Request output');\n}\n\nlet base64Data = item.screenshot;\n\n// Remove data URI prefix if present\nif (base64Data.includes('base64,')) {\n  base64Data = base64Data.split('base64,')[1];\n  console.log('Removed data URI prefix');\n}\n\nconsole.log('Base64 data length:', base64Data.length);\n\n// Convert to Buffer\nconst buffer = Buffer.from(base64Data, 'base64');\nconsole.log('Buffer created, size:', buffer.length, 'bytes');\n\nreturn {\n  json: {\n    prompt: item.prompt,\n    mode: item.mode,\n    presetId: item.presetId,\n    frameName: item.frameName,\n    fileKey: item.fileKey,\n    nodeId: item.nodeId,\n    fileName: item.fileName\n  },\n  binary: {\n    screenshot: {\n      data: buffer,\n      mimeType: 'image/png',\n      fileName: `${item.frameName.replace(/\\s+/g, '_')}_inspiration.png`\n    }\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Convert Screenshot to Binary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -544,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.magicpatterns.com/api/v2/pattern",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-mp-api-key",
+              "value": "YOUR_MAGIC_PATTERNS_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            },
+            {
+              "name": "mode",
+              "value": "={{ $json.mode }}"
+            },
+            {
+              "name": "presetId",
+              "value": "={{ $json.presetId }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 600000
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Call Magic Patterns API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -288,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst convertData = $('Store Screenshot Data').item.json;\n\nreturn {\n  json: {\n    success: true,\n    editorUrl: response.editorUrl,\n    previewUrl: response.previewUrl,\n    designId: response.id,\n    frameName: convertData.frameName,\n    fileName: convertData.fileName,\n    fileKey: convertData.fileKey,\n    nodeId: convertData.nodeId\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Parse Magic Patterns Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        1264
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nconst figmaUrl = `https://www.figma.com/file/${data.fileKey}/${encodeURIComponent(data.fileName)}?node-id=${data.nodeId}`;\n\nconst text = `:sparkles: *Magic Patterns Generation Complete*\n\n*File:* ${data.fileName}\n*Frame:* ${data.frameName}\n*Analysis:* AI-powered with screenshot inspiration\n\n:art: *Generated Variations*\n• 4 unique design alternatives created\n• Based on AI analysis of original design\n• Uses screenshot as visual inspiration\n• Maintained core purpose and functionality\n\n:link: *Links*\n:point_right: <${figmaUrl}|View original frame in Figma>\n:point_right: <${data.editorUrl}|Open generated variations editor>\n:point_right: <${data.previewUrl}|Preview live designs>\n\n:bulb: *Next Steps*\n1. Review the 4 generated variations\n2. Edit in Magic Patterns editor if needed\n3. Export code or copy designs back to Figma\n\n_Powered by SignalDesign AI Agent + Magic Patterns_\n_Automated with this n8n workflow_`;\n\nreturn { text: text };"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        1136
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09K9MV8S4D",
+          "mode": "list",
+          "cachedResultName": "#design_ai_agent_support"
+        },
+        "text": "={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Send to Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        480,
+        1136
+      ],
+      "webhookId": "cfaf44fe-ab34-4d47-8f1c-9a45db388460",
+      "credentials": {
+        "slackOAuth2Api": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_SLACK_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\nreturn {\n  json: {\n    success: true,\n    message: '🎨 Magic Patterns generation complete!',\n    editorUrl: data.editorUrl,\n    previewUrl: data.previewUrl,\n    designId: data.designId,\n    variations: 4,\n    instructions: 'Click the editor link to view and customize your generated variations'\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Figma Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"status\": \"processing\",\n  \"message\": \"🎨 Magic Patterns generation started! This will take 5-6 minutes. Check Slack for results.\",\n  \"estimatedTime\": \"5-6 minutes\"\n}",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Respond to Plugin",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -1392,
+        1056
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "YOUR_CREDENTIAL_ID",
+              "name": "screenshot",
+              "value": "=={{ $json.screenshot }}",
+              "type": "string"
+            },
+            {
+              "id": "YOUR_CREDENTIAL_ID",
+              "name": "",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "YOUR_CREDENTIAL_ID",
+              "name": "frameName",
+              "value": "=={{ $json.frameName }}",
+              "type": "string"
+            },
+            {
+              "id": "YOUR_CREDENTIAL_ID",
+              "name": "fileName",
+              "value": "=={{ $json.fileName }}",
+              "type": "string"
+            },
+            {
+              "id": "YOUR_CREDENTIAL_ID",
+              "name": "fileKey",
+              "value": "=={{ $json.fileKey }}",
+              "type": "string"
+            },
+            {
+              "id": "YOUR_CREDENTIAL_ID",
+              "name": "nodeId",
+              "value": "=={{ $json.nodeId }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1392,
+        1264
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Store Screenshot Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Input": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Analyze Frame",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Analyze Frame": {
+      "main": [
+        [
+          {
+            "node": "Prepare MP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent - Analyze Frame",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Node Details": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Analyze Frame",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Color Analysis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Analyze Frame",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Typography": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Analyze Frame",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Components": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent - Analyze Frame",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare MP Request": {
+      "main": [
+        [
+          {
+            "node": "Convert Screenshot to Binary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convert Screenshot to Binary": {
+      "main": [
+        [
+          {
+            "node": "Call Magic Patterns API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Magic Patterns API": {
+      "main": [
+        [
+          {
+            "node": "Parse Magic Patterns Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Magic Patterns Response": {
+      "main": [
+        [
+          {
+            "node": "Format Slack Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Figma Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Send to Slack",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Figma Response": {
+      "main": [
+        []
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Store Screenshot Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond to Plugin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Screenshot Data": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "efb103e8-7cf0-43df-a8b5-2e428d73772a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21583cc8a217802933158e2ba380c77e740268d1b62afc9d25ac0da733f4628e"
+  },
+  "id": "YOUR_CREDENTIAL_ID",
+  "tags": []
+}

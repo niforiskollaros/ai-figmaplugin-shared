@@ -1,0 +1,364 @@
+{
+  "name": "UX Heuristic Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ux-analysis",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        -64,
+        160
+      ],
+      "webhookId": "ux-analysis"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a senior UX researcher and interaction designer with expertise in Nielsen's 10 Usability Heuristics.\n\nYou are conducting a UX heuristic evaluation of frame \"{{ $json.nodeName }}\". You have access to these tools:\n- get_node_details: Get complete design structure\n- analyze_hierarchy: Analyze visual hierarchy and nesting\n- get_typography: Get all text nodes with font properties\n- get_node_details: Get layout properties\n\n**CRITICAL: You MUST respond with ONLY a valid JSON array. No markdown, no code blocks, no explanations.**\n\nReturn exactly this structure:\n[\n  {\n    \"heuristic\": \"H1: Visibility of system status\",\n    \"category\": \"USABILITY\",\n    \"severity\": \"high|medium|low\",\n    \"issue\": \"Brief description of the issue found\",\n    \"reason\": \"Why this matters for users\",\n    \"recommendation\": \"Specific fix recommendation\",\n    \"location\": \"Where in the design this occurs\"\n  }\n]\n\nEvaluate ALL 10 Nielsen heuristics:\nH1: Visibility of system status\nH2: Match between system and the real world\nH3: User control and freedom\nH4: Consistency and standards\nH5: Error prevention\nH6: Recognition rather than recall\nH7: Flexibility and efficiency of use\nH8: Aesthetic and minimalist design\nH9: Help users recognize, diagnose, and recover from errors\nH10: Help and documentation\n\nReturn 8-12 findings across different heuristics and severity levels.\n**Output ONLY the JSON array. Do not wrap in markdown code blocks.**",
+        "options": {
+          "systemMessage": "=You are a senior UX researcher and interaction designer with expertise in:\n- Nielsen's 10 Usability Heuristics (Jakob Nielsen)\n- Cognitive psychology and HCI principles\n- Accessibility (WCAG, inclusive design)\n- Information architecture and visual hierarchy\n- Interaction patterns and microinteractions\n- User testing and heuristic evaluation methodology\n\nYou provide evidence-based UX insights, prioritize by user impact, and give concrete recommendations.\n\nIMPORTANT: When using tools, they expect camelCase parameters:\n- fileKey (not file_key)\n- nodeId (not node_id)\n\nAlways call ALL available tools to gather complete context before evaluating. Consider:\n- How users will perceive and interact with this design\n- What might confuse or frustrate them\n- Whether feedback and affordances are clear\n- If the interface supports user goals efficiently"
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "AI Agent UX Heuristics",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.6,
+      "position": [
+        592,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5-mini",
+        "options": {
+          "maxTokens": 32768,
+          "temperature": 1
+        }
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        416,
+        672
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "YOUR_OPENAI_CREDENTIALS"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $input.first().json.fileKey }}_{{ $input.first().json.nodeId }}",
+        "contextWindowLength": 10
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Conversation Buffer Memory",
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.2,
+      "position": [
+        592,
+        816
+      ],
+      "notes": "Remembers last 10 UX evaluations per frame"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'get_node_details',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Node Details",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1088,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'analyze_hierarchy',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Hierarchy Analysis",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://YOUR_MCP_SERVER_URL/mcp",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  tool: 'get_typography',\n  parameters: {\n    fileKey: $input.first().json.fileKey,\n    nodeId: $input.first().json.nodeId\n  }\n})}}"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "MCP Typography",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        928,
+        672
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Agent Output - Mode 4: UX Heuristic Analysis\nconst item = $input.item.json;\nconst agentOutput = item.output;\n\nconsole.log('=== RAW AI OUTPUT ===');\nconsole.log(agentOutput.substring(0, 500)); // Log first 500 chars\n\nlet findings = [];\n\ntry {\n  // Strategy 1: Try direct parse\n  findings = JSON.parse(agentOutput);\n  console.log('✓ Direct parse successful');\n} catch (e) {\n  console.log('✗ Direct parse failed, trying markdown extraction...');\n  \n  try {\n    // Strategy 2: Extract from markdown\n    const jsonMatch = agentOutput.match(/```json\\s+([\\s\\S]+?)\\s+```/);\n    if (jsonMatch && jsonMatch[1]) {\n      findings = JSON.parse(jsonMatch[1]);\n      console.log('✓ Markdown extraction successful');\n    } else {\n      throw new Error('No markdown JSON found');\n    }\n  } catch (e2) {\n    console.log('✗ Markdown extraction failed, trying array search...');\n    \n    try {\n      // Strategy 3: Find any JSON array\n      const arrayMatch = agentOutput.match(/\\[[\\s\\S]*\\]/);\n      if (arrayMatch) {\n        findings = JSON.parse(arrayMatch[0]);\n        console.log('✓ Array search successful');\n      } else {\n        throw new Error('No JSON array found');\n      }\n    } catch (e3) {\n      console.error('✗ All parsing strategies failed');\n      console.error('Output type:', typeof agentOutput);\n      console.error('Output preview:', agentOutput.substring(0, 200));\n      findings = [];\n    }\n  }\n}\n\n// Ensure it's an array\nif (!Array.isArray(findings)) {\n  if (findings.findings && Array.isArray(findings.findings)) {\n    findings = findings.findings;\n  } else {\n    console.warn('Output is not an array, got:', typeof findings);\n    findings = [];\n  }\n}\n\nconsole.log('=== PARSED FINDINGS ===');\nconsole.log('Total findings:', findings.length);\nconsole.log('Sample finding:', findings[0] || 'none');\n\n// Group by severity\nconst grouped = {\n  high: findings.filter(f => f.severity === 'high'),\n  medium: findings.filter(f => f.severity === 'medium'),\n  low: findings.filter(f => f.severity === 'low')\n};\n\n// Group by heuristic\nconst heuristics = {};\nfindings.forEach(finding => {\n  const key = finding.heuristic || 'Other';\n  if (!heuristics[key]) heuristics[key] = [];\n  heuristics[key].push(finding);\n});\n\n// Summary\nconst summary = {\n  total: findings.length,\n  high: grouped.high.length,\n  medium: grouped.medium.length,\n  low: grouped.low.length,\n  heuristicsCount: Object.keys(heuristics).length\n};\n\n// Get metadata\nlet extractData = {};\ntry {\n  extractData = $('Extract Data').first().json;\n} catch (e) {\n  console.error('Could not get Extract Data:', e);\n}\n\nreturn {\n  mode: 'ux-analysis',\n  findings: findings,\n  grouped: grouped,\n  heuristics: heuristics,\n  summary: summary,\n  fileKey: extractData.fileKey || 'Unknown',\n  fileName: extractData.fileName || 'Unknown File',\n  frameName: extractData.frameName || 'Unknown Frame',\n  nodeId: extractData.nodeId || 'Unknown',\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Parse Agent Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        160
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\n\n// Construct Figma deep link to the specific frame\nconst figmaUrl = `https://www.figma.com/file/${data.fileKey}/${encodeURIComponent(data.fileName)}?node-id=${data.nodeId}`;\n\n// Build high severity section\nlet highSection = '';\nif (data.grouped.high && data.grouped.high.length > 0) {\n  const highIssues = data.grouped.high.slice(0, 3).map(f => \n    `• ${f.heuristic}: ${f.issue.substring(0, 100)}${f.issue.length > 100 ? '...' : ''}`\n  ).join('\\n');\n  highSection = `:red_circle: *High Severity Issues*\\n${highIssues}\\n\\n`;\n}\n\n// Build medium severity section\nlet mediumSection = '';\nif (data.grouped.medium && data.grouped.medium.length > 0) {\n  const mediumIssues = data.grouped.medium.slice(0, 3).map(f => \n    `• ${f.heuristic}: ${f.issue.substring(0, 100)}${f.issue.length > 100 ? '...' : ''}`\n  ).join('\\n');\n  const mediumMore = data.grouped.medium.length > 3 ? `\\n• +${data.grouped.medium.length - 3} more medium severity issues` : '';\n  mediumSection = `:large_orange_diamond: *Medium Severity Issues*\\n${mediumIssues}${mediumMore}\\n\\n`;\n}\n\nconst text = `:art: *UX Heuristic Analysis Complete*\n\n*File:* ${data.fileName}\n*Frame:* ${data.frameName}\n*File Key:* ${data.fileKey.substring(0, 12)}...\n*Focus:* UX Heuristic Analysis\n\n:bar_chart: *Summary*\n- Total Issues: ${data.summary.total}\n- :red_circle: High: ${data.summary.high}\n- :large_orange_diamond: Medium: ${data.summary.medium}\n- :large_blue_circle: Low: ${data.summary.low}\n- Nielsen Heuristics Covered: ${data.summary.heuristicsCount}/10\n\n${highSection}${mediumSection}:bulb: *UX Insights*\n- ${data.summary.total} usability issues found\n- Based on Nielsen's 10 Usability Heuristics\n\n:point_right: <${figmaUrl}|*View full UX report in Figma →*>\n\n_Powered by SignalDesign AI Agent_`;\n\n// Return in proper n8n format\nreturn [{ \n  json: { \n    text: text \n  } \n}];"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Slack Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format Figma Response - Mode 4: UX Heuristic Analysis (FIXED)\n// Passes findings array instead of plain text\n\nconst data = $input.first().json;\n\nreturn {\n  success: true,\n  mode: data.mode || 'ux-analysis',\n  findings: data.findings || [],\n  grouped: data.grouped || { high: [], medium: [], low: [] },\n  heuristics: data.heuristics || {},\n  summary: data.summary || { total: 0, high: 0, medium: 0, low: 0, heuristicsCount: 0 },\n  fileKey: data.fileKey || 'Unknown',\n  fileName: data.fileName || 'Unknown File',\n  frameName: data.frameName || 'Unknown Frame',\n  nodeId: data.nodeId || 'Unknown',\n  timestamp: new Date().toISOString(),\n  metadata: data.metadata || {\n    fileKey: data.fileKey || 'Unknown',\n    fileName: data.fileName || 'Unknown File',\n    frameName: data.frameName || 'Unknown Frame',\n    analyzedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Format Figma Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Respond to Plugin",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1248,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "C09K9MV8S4D",
+          "mode": "list",
+          "cachedResultName": "design_ai_agent_support"
+        },
+        "text": "=={{ $json.text }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1216,
+        48
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Send a message",
+      "webhookId": "da9d64fd-fb6d-427e-bb9b-90496dea5d7c",
+      "credentials": {
+        "slackApi": {
+          "id": "YOUR_CREDENTIAL_ID",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract Data Node - JSON Code (UX Heuristic Analysis)\n// This extracts the nested webhook data and outputs clean JSON\n\nconst data = $input.first().json.body.body;\n\nreturn {\n  fileKey: data.fileKey,\n  nodeId: data.nodeId,\n  fileName: data.fileName,\n  frameName: data.frameName,\n  dsFileKey: data.dsFileKey,\n  screenshot: data.screenshot || null,\n  nodeData: data.nodeData || null,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        160
+      ],
+      "id": "YOUR_CREDENTIAL_ID",
+      "name": "Extract Data"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent UX Heuristics": {
+      "main": [
+        [
+          {
+            "node": "Parse Agent Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent UX Heuristics",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Conversation Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent UX Heuristics",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Node Details": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent UX Heuristics",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Hierarchy Analysis": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent UX Heuristics",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "MCP Typography": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent UX Heuristics",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Agent Output": {
+      "main": [
+        [
+          {
+            "node": "Format Slack Message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Format Figma Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Slack Message": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Figma Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Plugin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent UX Heuristics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ac8416ca-54f6-42a5-92b3-31d6360f307c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "21583cc8a217802933158e2ba380c77e740268d1b62afc9d25ac0da733f4628e"
+  },
+  "id": "YOUR_CREDENTIAL_ID",
+  "tags": []
+}
