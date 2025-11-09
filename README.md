@@ -301,7 +301,7 @@ Monthly costs with moderate usage (~100 analyses/month):
 The system requires an MCP server to interface with the Figma API. You have two options:
 
 ### Option 1: Use Existing Shared Server (Easiest)
-**No setup required!** Use: `https://signalmpc-production.up.railway.app`
+**No setup required!** Use: `https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app`
 
 **Pros**: Zero configuration, always updated, free
 **Cons**: Shared with others, no customization

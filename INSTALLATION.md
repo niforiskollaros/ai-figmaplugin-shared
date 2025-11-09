@@ -232,7 +232,7 @@ Try each mode to ensure they work:
 
 ## Optional: Deploy Your Own MCP Server
 
-The system can use the existing MCP server at `https://signalmpc-production.up.railway.app`, **but you can also deploy your own using the included code!**
+The system can use the existing MCP server at `https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app`, **but you can also deploy your own using the included code!**
 
 ### Why Deploy Your Own?
 

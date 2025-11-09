@@ -92,7 +92,7 @@ Now you need to update several nodes in this workflow:
 2. Click on it
 3. Look for the URL parameter
 4. Replace `https://YOUR_MCP_SERVER_URL` with:
-   - Use existing: `https://signalmpc-production.up.railway.app`
+   - Use existing: `https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app`
    - Or your own MCP server URL if you deployed one
 5. Repeat for ALL MCP tool nodes in the workflow (there are usually 3-4)
 

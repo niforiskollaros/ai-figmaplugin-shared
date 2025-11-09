@@ -44,7 +44,7 @@ Before starting, get these ready:
    - Open each JSON in `n8n-workflows/` folder
    - Import to n8n (Menu → Import from File)
    - Update OpenAI credentials in each
-   - Update MCP server URL in tool nodes: `https://signalmpc-production.up.railway.app`
+   - Update MCP server URL in tool nodes: `https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app`
    - Activate each workflow (toggle in top-right)
    - Copy webhook URL from each
 
@@ -84,7 +84,7 @@ https://your-n8n.app.n8n.cloud/webhook/component-analysis
      "networkAccess": {
        "allowedDomains": [
          "https://your-n8n.app.n8n.cloud",
-         "https://signalmpc-production.up.railway.app"
+         "https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app"
        ]
      }
    }

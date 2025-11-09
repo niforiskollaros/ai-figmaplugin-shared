@@ -10,7 +10,7 @@ The MCP (Model Context Protocol) Server is a Node.js/Express server that:
 - Runs on Railway (or any Node.js hosting platform)
 - Requires only a Figma Personal Access Token
 
-**You can use the existing shared server** (`https://signalmpc-production.up.railway.app`) **or deploy your own** for privacy/control.
+**You can use the existing shared server** (`https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app`) **or deploy your own** for privacy/control.
 
 ---
 
@@ -51,12 +51,12 @@ See full tool documentation at the end of this file.
 **No deployment needed!** Use the existing server:
 
 ```
-https://signalmpc-production.up.railway.app
+https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app
 ```
 
 **Health Check**:
 ```bash
-curl https://signalmpc-production.up.railway.app/health
+curl https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app/health
 ```
 
 **Pros**:
@@ -194,7 +194,7 @@ After deploying your own server:
 2. Find all **MCP tool nodes** (HTTP Request nodes)
 3. Replace the URL:
    ```
-   FROM: https://signalmpc-production.up.railway.app/mcp
+   FROM: https://OUR_CUSTOM_MCP_SERVER-production.up.railway.app/mcp
    TO:   https://YOUR-SERVICE-NAME.up.railway.app/mcp
    ```
 4. Save each workflow
